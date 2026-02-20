@@ -1,0 +1,48 @@
+import type { Config } from "tailwindcss";
+
+const config: Config = {
+  content: [
+    "./src/pages/**/*.{js,ts,jsx,tsx,mdx}",
+    "./src/components/**/*.{js,ts,jsx,tsx,mdx}",
+    "./src/app/**/*.{js,ts,jsx,tsx,mdx}",
+  ],
+  theme: {
+    extend: {
+      colors: {
+        border: "rgb(229, 231, 235)",
+        input: "rgb(249, 250, 251)",
+        ring: "rgb(59, 130, 246)",
+        background: "rgb(255, 255, 255)",
+        foreground: "rgb(17, 24, 39)",
+        primary: {
+          DEFAULT: "rgb(59, 130, 246)",
+          foreground: "rgb(255, 255, 255)",
+        },
+        secondary: {
+          DEFAULT: "rgb(107, 114, 128)",
+          foreground: "rgb(255, 255, 255)",
+        },
+        destructive: {
+          DEFAULT: "rgb(239, 68, 68)",
+          foreground: "rgb(255, 255, 255)",
+        },
+        muted: {
+          DEFAULT: "rgb(243, 244, 246)",
+          foreground: "rgb(107, 114, 128)",
+        },
+        accent: {
+          DEFAULT: "rgb(59, 130, 246)",
+          foreground: "rgb(255, 255, 255)",
+        },
+      },
+      borderRadius: {
+        lg: "0.5rem",
+        md: "0.375rem",
+        sm: "0.25rem",
+      },
+    },
+  },
+  plugins: [],
+};
+
+export default config;
