@@ -7,3 +7,12 @@ psycopg2-binary
 langgraph
 httpx
 sentence-transformers
+
+requests
+pandas
+diskcache
+yfinance
+lxml
+numpy
+earningscall
+python-dateutil

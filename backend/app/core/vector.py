@@ -7,9 +7,11 @@ logger = get_logger(__name__)
 
 
 def get_qdrant_client() -> QdrantClient:
-	if not settings.qdrant_url:
-		raise ValueError("QDRANT_URL is not set")
-	return QdrantClient(url=settings.qdrant_url, api_key=settings.qdrant_api_key or None)
+    """Get Qdrant client, raises error if QDRANT_URL not configured"""
+    if not settings.qdrant_url:
+        logger.error("QDRANT_URL not configured - Qdrant features unavailable")
+        raise ValueError("QDRANT_URL environment variable not set")
+    return QdrantClient(url=settings.qdrant_url, api_key=settings.qdrant_api_key or None)
 
 
 def test_qdrant_connection() -> bool:
