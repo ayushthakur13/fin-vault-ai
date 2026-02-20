@@ -1,0 +1,9 @@
+fastapi
+uvicorn[standard]
+python-dotenv
+groq
+qdrant-client
+psycopg2-binary
+langgraph
+httpx
+sentence-transformers
