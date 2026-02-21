@@ -86,17 +86,32 @@ def search_narrative(
         filters = None
         # Note: Complex filtering deferred - results are post-filtered in Python if needed
         
-        # Search Qdrant using search_points API
+        # Search Qdrant - try multiple method names for compatibility
+        search_results = []
         try:
-            search_result = client.search_points(
-                collection_name=collection_name,
-                query_vector=query_embedding,
-                limit=top_k,
-                query_filter=filters,
-                score_threshold=score_threshold
-            )
-            # Extract points from SearchResponse
-            search_results = search_result.points if hasattr(search_result, 'points') else search_result
+            # Try newer API (qdrant-client >= 1.7)
+            if hasattr(client, 'search'):
+                search_result = client.search(
+                    collection_name=collection_name,
+                    query_vector=query_embedding,
+                    limit=top_k,
+                    query_filter=filters,
+                    score_threshold=score_threshold
+                )
+                search_results = search_result if isinstance(search_result, list) else (search_result.points if hasattr(search_result, 'points') else search_result)
+            # Fall back to older API (qdrant-client < 1.7)
+            elif hasattr(client, 'search_points'):
+                search_result = client.search_points(
+                    collection_name=collection_name,
+                    query_vector=query_embedding,
+                    limit=top_k,
+                    query_filter=filters,
+                    score_threshold=score_threshold
+                )
+                search_results = search_result.points if hasattr(search_result, 'points') else search_result
+            else:
+                logger.error(f"Qdrant client has no search method. Available methods: {dir(client)}")
+                return []
         except Exception as search_exc:
             logger.warning(f"Narrative search failed: {search_exc}")
             return []

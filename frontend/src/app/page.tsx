@@ -1,6 +1,8 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import LoginPage from "@/components/LoginPage";
+import { useAuth } from "@/lib/AuthContext";
 import {
   QueryPanel,
   ResultsView,
@@ -9,31 +11,31 @@ import {
   QueryHistory,
   MetricsFooter,
 } from "@/components";
-import { useQueryFinancialData, useQueryHistory } from "@/hooks/index";
+import { useQueryFinancialData, useBackendQueryHistory } from "@/hooks/index";
 import { QueryRequest, QueryResponse, QueryHistoryItem } from "@/types";
-import { Zap } from "lucide-react";
+import { saveQueryToHistory } from "@/lib/api";
+import { Zap, LogOut, Plus } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
 
 export default function Home() {
+  // ALL HOOKS MUST BE CALLED FIRST - before any conditional logic
+  const { token, username, logout, isAuthenticated } = useAuth();
+  const { history, isLoading: historyLoading, clearHistory } = useBackendQueryHistory(token);
+  const queryClient = useQueryClient();
+  const [isMounted, setIsMounted] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [response, setResponse] = useState<QueryResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [selectedHistoryQuery, setSelectedHistoryQuery] = useState<string | undefined>(undefined);
+  const [currentQueryId, setCurrentQueryId] = useState<number | string | undefined>(undefined);
   const { mutate: queryData, isPending } = useQueryFinancialData();
-  const { history, addToHistory, clearHistory } = useQueryHistory();
-  const [historyItems, setHistoryItems] = useState<QueryHistoryItem[]>([]);
 
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+
+  // Mark component as mounted after hydration
   useEffect(() => {
-    // Convert history to QueryHistoryItem format
-    setHistoryItems(
-      history.map((item: any) => ({
-        id: item.id,
-        query: item.query,
-        mode: "quick" as const,
-        timestamp: new Date(item.timestamp),
-        retrieval_mode: "hybrid",
-        has_contradictions: false,
-      }))
-    );
-  }, [history]);
+    setIsMounted(true);
+  }, []);
 
   const handleSubmit = (request: QueryRequest) => {
     setError(null);
@@ -42,7 +44,24 @@ export default function Home() {
     queryData(request, {
       onSuccess: (data) => {
         setResponse(data);
-        addToHistory(request.query);
+        
+        // Save to backend if authenticated
+        if (token) {
+          saveQueryToHistory(
+            request.query,
+            token,
+            request.mode || "quick",
+            request.retrieval_mode || "hybrid",
+            data.analysis,
+            data.model_used,
+            data.latency_ms
+          ).then(() => {
+            // Refetch query history after save
+            queryClient.invalidateQueries({ queryKey: ["queryHistory", token] });
+          }).catch((err) => {
+            console.warn("Failed to save to backend history:", err);
+          });
+        }
       },
       onError: (err: any) => {
         setError(
@@ -52,10 +71,43 @@ export default function Home() {
     });
   };
 
-  const handleSelectFromHistory = (query: string) => {
+  const handleSelectFromHistory = (item: QueryHistoryItem) => {
+    setError(null);
+    // Populate the query panel with the selected query
+    setSelectedHistoryQuery(item.query);
+    setCurrentQueryId(item.id);
+    
+    // Reconstruct and display the response from history
+    const reconstructedResponse: QueryResponse = {
+      query: item.query,
+      analysis: item.analysis || "No analysis available",
+      retrieval_mode: item.retrieval_mode || "hybrid",
+      model_used: item.model_used || "unknown",
+      numeric_data_count: 0,
+      narrative_chunks_count: 0,
+      sources: [],
+      latency_ms: item.latency_ms || 0,
+    };
+    setResponse(reconstructedResponse);
+  };
+
+  const handleNewChat = () => {
+    // Clear all current state to start fresh
     setResponse(null);
     setError(null);
+    setSelectedHistoryQuery(undefined);
+    setCurrentQueryId(undefined);
   };
+
+  // NOW check authentication and return early if needed
+  // Wait for hydration to complete before showing authenticated content
+  if (!isMounted || !isAuthenticated) {
+    return (
+      <LoginPage
+        apiUrl={apiUrl}
+      />
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-100">
@@ -67,14 +119,36 @@ export default function Home() {
               <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center">
                 <Zap className="w-6 h-6 text-white" />
               </div>
-              <h1 className="text-2xl font-bold text-gray-900">FinVault AI</h1>
+              <div>
+                <h1 className="text-2xl font-bold text-gray-900">FinVault AI</h1>
+                <p className="text-sm text-gray-600">Logged in as {username}</p>
+              </div>
             </div>
-            <button
-              onClick={() => setSidebarOpen(true)}
-              className="px-4 py-2 bg-gray-100 text-gray-900 rounded-md hover:bg-gray-200 font-medium transition-colors"
-            >
-              Memory
-            </button>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setSidebarOpen(true)}
+                className="px-4 py-2 bg-gray-100 text-gray-900 rounded-md hover:bg-gray-200 font-medium transition-colors"
+              >
+                Memory
+              </button>
+              {currentQueryId && (
+                <button
+                  onClick={handleNewChat}
+                  title="Start a new chat"
+                  className="px-4 py-2 bg-green-100 text-green-700 rounded-md hover:bg-green-200 font-medium transition-colors flex items-center gap-2"
+                >
+                  <Plus size={18} />
+                  New Chat
+                </button>
+              )}
+              <button
+                onClick={logout}
+                className="px-4 py-2 bg-red-100 text-red-700 rounded-md hover:bg-red-200 font-medium transition-colors flex items-center gap-2"
+              >
+                <LogOut size={18} />
+                Logout
+              </button>
+            </div>
           </div>
         </div>
       </header>
@@ -85,7 +159,11 @@ export default function Home() {
           {/* Left Column - Main Content */}
           <div className="lg:col-span-2 space-y-6">
             {/* Query Panel */}
-            <QueryPanel onSubmit={handleSubmit} isLoading={isPending} />
+            <QueryPanel 
+              onSubmit={handleSubmit} 
+              isLoading={isPending}
+              initialQuery={selectedHistoryQuery}
+            />
 
             {/* Error Message */}
             {error && (
@@ -120,7 +198,9 @@ export default function Home() {
           {/* Right Column - Sidebar */}
           <div className="space-y-6">
             <QueryHistory
-              items={historyItems}
+              items={history}
+              isLoading={historyLoading}
+              currentQueryId={currentQueryId}
               onSelect={handleSelectFromHistory}
               onClear={clearHistory}
             />

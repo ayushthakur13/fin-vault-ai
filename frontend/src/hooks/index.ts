@@ -1,8 +1,8 @@
 "use client";
 
 import React from "react";
-import { useMutation, useQuery } from "@tanstack/react-query";
-import { queryFinancialData, healthCheck } from "@/lib/api";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { queryFinancialData, healthCheck, getQueryHistory, clearQueryHistory } from "@/lib/api";
 import { QueryRequest } from "@/types";
 
 export const useQueryFinancialData = () => {
@@ -21,37 +21,36 @@ export const useHealthCheck = () => {
 };
 
 /**
- * Hook for managing query history
+ * Hook for fetching backend query history
  */
-export const useQueryHistory = () => {
-  const [history, setHistory] = React.useState<
-    Array<{ id: string; query: string; timestamp: Date }>
-  >(() => {
-    if (typeof window === "undefined") return [];
-    const stored = localStorage.getItem("query_history");
-    return stored ? JSON.parse(stored) : [];
+export const useBackendQueryHistory = (token: string | null) => {
+  const queryClient = useQueryClient();
+
+  const { data: history = [], isLoading } = useQuery({
+    queryKey: ["queryHistory", token],
+    queryFn: () => {
+      // Only make request if token is a valid non-empty string
+      if (!token || typeof token !== "string" || token.trim().length === 0) {
+        return Promise.resolve([]);
+      }
+      return getQueryHistory(token, 50);
+    },
+    enabled: !!(token && typeof token === "string" && token.trim().length > 0),
+    staleTime: 60000, // 1 minute
   });
 
-  const addToHistory = React.useCallback(
-    (query: string) => {
-      const newItem = {
-        id: Date.now().toString(),
-        query,
-        timestamp: new Date(),
-      };
-      const updated = [newItem, ...history].slice(0, 20);
-      setHistory(updated);
-      localStorage.setItem("query_history", JSON.stringify(updated));
-    },
-    [history]
-  );
+  const clearHistoryHandler = React.useCallback(() => {
+    if (token && typeof token === "string" && token.trim().length > 0) {
+      clearQueryHistory(token)
+        .then(() => {
+          // Refetch after clear
+          queryClient.invalidateQueries({ queryKey: ["queryHistory", token] });
+        })
+        .catch((err: any) => console.warn("Failed to clear history:", err));
+    }
+  }, [token, queryClient]);
 
-  const clearHistory = React.useCallback(() => {
-    setHistory([]);
-    localStorage.removeItem("query_history");
-  }, []);
-
-  return { history, addToHistory, clearHistory };
+  return { history, isLoading, clearHistory: clearHistoryHandler };
 };
 
 /**

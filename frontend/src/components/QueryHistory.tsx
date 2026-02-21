@@ -7,29 +7,30 @@
 
 import React from "react";
 import { Clock, Trash2, Copy } from "lucide-react";
-
-interface QueryHistoryItem {
-  id: string;
-  query: string;
-  mode: "quick" | "deep";
-  timestamp: Date;
-  retrievalMode?: string;
-}
+import { QueryHistoryItem } from "@/types";
 
 interface QueryHistoryProps {
   items: QueryHistoryItem[];
-  onSelect: (query: string) => void;
+  isLoading?: boolean;
+  currentQueryId?: number | string;
+  onSelect: (item: QueryHistoryItem) => void;
   onClear: () => void;
 }
 
 export const QueryHistory: React.FC<QueryHistoryProps> = ({
   items,
+  isLoading = false,
+  currentQueryId,
   onSelect,
   onClear,
 }) => {
-  const formatTime = (date: Date) => {
+  const formatTime = (item: QueryHistoryItem) => {
+    const dateStr = item.created_at;
+    if (!dateStr) return "unknown";
+    
     const now = new Date();
-    const diff = now.getTime() - new Date(date).getTime();
+    const date = new Date(dateStr);
+    const diff = now.getTime() - date.getTime();
     const minutes = Math.floor(diff / 60000);
     const hours = Math.floor(diff / 3600000);
     const days = Math.floor(diff / 86400000);
@@ -39,7 +40,7 @@ export const QueryHistory: React.FC<QueryHistoryProps> = ({
     if (hours < 24) return `${hours}h ago`;
     if (days < 7) return `${days}d ago`;
 
-    return new Date(date).toLocaleDateString();
+    return new Date(dateStr).toLocaleDateString();
   };
 
   return (
@@ -60,15 +61,26 @@ export const QueryHistory: React.FC<QueryHistoryProps> = ({
         )}
       </div>
 
-      {items.length === 0 ? (
+      {isLoading ? (
+        <div className="flex items-center justify-center py-8">
+          <div className="flex flex-col items-center gap-3">
+            <div className="w-8 h-8 border-4 border-gray-200 border-t-blue-600 rounded-full animate-spin"></div>
+            <p className="text-sm text-gray-600">Loading history...</p>
+          </div>
+        </div>
+      ) : items.length === 0 ? (
         <p className="text-center text-gray-500 py-8">No query history yet</p>
       ) : (
         <div className="space-y-2 max-h-60 overflow-y-auto">
           {items.map((item) => (
             <button
               key={item.id}
-              onClick={() => onSelect(item.query)}
-              className="w-full text-left p-3 rounded-lg hover:bg-gray-50 border border-gray-200 transition-colors group"
+              onClick={() => onSelect(item)}
+              className={`w-full text-left p-3 rounded-lg transition-colors group ${
+                currentQueryId === item.id
+                  ? "border-blue-400 bg-blue-50 hover:bg-blue-100 border-2"
+                  : "border border-gray-200 hover:bg-gray-50"
+              }`}
             >
               <div className="flex items-start justify-between gap-2">
                 <div className="flex-1 min-w-0">
@@ -78,15 +90,17 @@ export const QueryHistory: React.FC<QueryHistoryProps> = ({
                   <div className="flex items-center gap-2 mt-1">
                     <span
                       className={`text-xs px-2 py-1 rounded capitalize ${
-                        item.mode === "quick"
+                        item.mode?.toLowerCase() === "quick"
                           ? "bg-blue-100 text-blue-700"
-                          : "bg-purple-100 text-purple-700"
+                          : item.mode?.toLowerCase() === "deep"
+                          ? "bg-purple-100 text-purple-700"
+                          : "bg-gray-100 text-gray-700"
                       }`}
                     >
-                      {item.mode}
+                      {item.mode || "unknown"}
                     </span>
                     <span className="text-xs text-gray-600">
-                      {formatTime(item.timestamp)}
+                      {formatTime(item)}
                     </span>
                   </div>
                 </div>

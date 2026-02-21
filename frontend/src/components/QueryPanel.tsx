@@ -12,15 +12,27 @@ import { Search, Loader2 } from "lucide-react";
 interface QueryPanelProps {
   onSubmit: (request: QueryRequest) => void;
   isLoading: boolean;
+  initialQuery?: string;
 }
 
 export const QueryPanel: React.FC<QueryPanelProps> = ({
   onSubmit,
   isLoading,
+  initialQuery,
 }) => {
   const [query, setQuery] = useState("");
   const [mode, setMode] = useState<"quick" | "deep">("quick");
   const [tickers, setTickers] = useState("");
+
+  // Populate or clear query based on initialQuery
+  React.useEffect(() => {
+    if (initialQuery && initialQuery !== query) {
+      setQuery(initialQuery);
+    } else if (!initialQuery) {
+      // Clear query when initialQuery is undefined (new chat)
+      setQuery("");
+    }
+  }, [initialQuery]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();

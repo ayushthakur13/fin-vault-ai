@@ -8,3 +8,4 @@ export { MemoryPreferencesSidebar } from "./MemoryPreferencesSidebar";
 export { SourcesView } from "./SourcesView";
 export { QueryHistory } from "./QueryHistory";
 export { MetricsFooter } from "./MetricsFooter";
+export { default as LoginPage } from "./LoginPage";

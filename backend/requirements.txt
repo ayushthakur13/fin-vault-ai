@@ -7,6 +7,9 @@ psycopg2-binary
 langgraph
 httpx
 sentence-transformers
+pyjwt
+passlib[bcrypt]
+python-multipart
 
 requests
 pandas

@@ -39,10 +39,12 @@ export interface MemoryPreferences {
 }
 
 export interface QueryHistoryItem {
-  id: string;
+  id: number;
   query: string;
-  mode: "quick" | "deep";
-  timestamp: Date;
+  mode: string;
   retrieval_mode: string;
-  has_contradictions: boolean;
+  analysis?: string;
+  model_used?: string;
+  latency_ms?: number;
+  created_at: string;
 }
